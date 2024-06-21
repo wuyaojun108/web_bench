@@ -21,6 +21,5 @@ int main(int argc, char *const *argv) {
     clean();
     freeUrl(&u);
     free(request);
-    request = NULL;
     return 0;
 }

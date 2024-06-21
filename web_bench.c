@@ -162,7 +162,7 @@ int parseUrl(char *url, Url *U) {
         hostEnd = urlEnd;
         U->host = malloc(hostEnd - url + 1);
         memcpy(U->host, url, hostEnd - url);
-        U->protocol[hostEnd - url] = '\0';
+        U->host[hostEnd - url] = '\0';
         isFinished = 1;
     } else if (portStart == NULL || (hostEnd != NULL && hostEnd < portStart)) {
         // url中没有端口信息
@@ -259,7 +259,8 @@ int parseParam(int argc, char *const *argv) {
     int longOptionIndex = 0;
 
     opterr = 1; // 打开解析选项时的错误输出
-    while ((opt = getopt_long(argc, argv, SHORT_OPTS, LONG_OPTS, &longOptionIndex)) != EOF) {
+    while ((opt = getopt_long(argc, argv, 
+            SHORT_OPTS, LONG_OPTS, &longOptionIndex)) != EOF) {
         switch (opt) {
             case ':':
             case 'h':
@@ -303,16 +304,6 @@ int parseParam(int argc, char *const *argv) {
                 break;
             // 处理选项错误的情况
             case '?':
-                // if (optind > 0 && optind < argc) {
-                    // 使用过程中遇到的问题，例如，./wb --aha 23、./wb -aha 23，长选项匹配失败和短选项匹配失败，
-                    // getopt_long有不同的行为，在这里做区分。短选项匹配失败，optind指向当前选项，长选项匹配失败，
-                    // optind执指向下一个选项
-                    // if (strncmp(argv[optind], "-", 1) == 0) {
-                    //     printf("unrecognized option %s\n", argv[optind]);
-                    // } else {
-                    //     printf("unrecognized option %s\n", argv[optind - 1]);
-                    // }
-                // }
                 return -1;
         }
     }
@@ -325,10 +316,11 @@ int parseParam(int argc, char *const *argv) {
     url = argv[optind];
     if (checkUrl(url) != 1) {
         printf("url格式错误\n");
+        return -1;
     }
 
-    // printf("解析结果：clients = %d, benchTime = %d, method = %s, head = %s, data = %s，url = %s\n", 
-    //     clients, benchTime, method, httpHead, httpData, url);
+    // printf("解析结果：clients = %d, method = %s, head = %s, data = %s，url = %s\n"
+    //     , clients, method, httpHead, httpData, url);
     return 0;
 }
 
@@ -392,8 +384,8 @@ char *buildRequest(Url *u) {
     }
 
     char *req = malloc(strlen(request) + 1);
-    memset(req, 0, strlen(request) + 1);
     memcpy(req, request, strlen(request));
+    req[strlen(request)] = '\0';
     return req;
 }
 
@@ -444,11 +436,13 @@ int strSplit(char *str, char *s, StrPart *strPart) {
         if (strncmp(&str[i], s, sLen) != 0) {
             i++;
             continue;
-        } 
+        }
         count++;
         i += sLen;
     }
-    count++;
+    if (strncmp(&str[strLen - sLen], s, sLen) != 0) {
+        count++;
+    }
     strPart->parts = malloc(count * sizeof(char *));
     memset(strPart->parts, 0, count * sizeof(char *));
 
@@ -465,9 +459,11 @@ int strSplit(char *str, char *s, StrPart *strPart) {
         char *part = malloc(sub - str + 1);
         memcpy(part, str, sub - str);
         part[sub - str] = '\0';
+        strPart->parts[strPart->count] = part;
+        
+        part = NULL;
         str = sub + sLen;
 
-        strPart->parts[strPart->count] = part;
         strPart->count++;
     }
     return 0;
@@ -475,8 +471,7 @@ int strSplit(char *str, char *s, StrPart *strPart) {
 
 void strPartFree(StrPart *strPart) {
     if (strPart->parts != NULL) {
-        int i;
-        for (i = 0; i < strPart->count; i++) {
+        for (int i = 0; i < strPart->count; i++) {
             free(strPart->parts[i]);
         }
         free(strPart->parts);
@@ -489,6 +484,7 @@ int isIpAddr(char *ip) {
     strSplit(ip, ".", &strPart);
 
     if (strPart.count != 4) {
+        strPartFree(&strPart);
         return 0;
     }
 
@@ -548,7 +544,6 @@ int createAndConnectSock(char *host, int port) {
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
-
     
     if (isIpAddr(host) == 1) {
         addr.sin_addr.s_addr = inet_addr(host);
@@ -663,7 +658,8 @@ void bench(char *request, Url *url) {
 
             int succeed, failed, writeBytes, readBytes;
             succeed = failed = writeBytes = readBytes = 0;
-            benchcore(request, url->host, url->port, &succeed, &failed, &writeBytes, &readBytes);
+            benchcore(request, url->host, url->port, 
+                &succeed, &failed, &writeBytes, &readBytes);
 
             // 结束时间
             time_t et;
@@ -675,6 +671,11 @@ void bench(char *request, Url *url) {
                 (int)(et - st), succeed, failed, writeBytes, readBytes);
             close(mypipe[0]);
             write(mypipe[1], resBuf, len);
+
+            free(request);
+            freeUrl(url);
+            free(httpData);
+            free(httpHead);
 
             exit(0);
         }
