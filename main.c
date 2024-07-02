@@ -1,7 +1,5 @@
 #include "web_bench.h"
 
-// 教程地址：https://github.com/EZLippi/WebBench
-
 int main(int argc, char *const *argv) {
     // 解析参数
     if (parseParam(argc, argv) == -1) {
