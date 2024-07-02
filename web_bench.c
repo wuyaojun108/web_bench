@@ -566,7 +566,8 @@ int createAndConnectSock(char *host, int port) {
 }
 
 void benchcore(char *req, char *host, int port, 
-        int *succeed, int *failed, int *writeBytes, int *readBytes) {
+        int *succeed, int *failed, unsigned long long *writeBytes, 
+        unsigned long long *readBytes) {
 
     int readBufLen = 512000;
     char readBuf[readBufLen];
@@ -656,7 +657,8 @@ void bench(char *request, Url *url) {
             time_t st;
             time(&st);
 
-            int succeed, failed, writeBytes, readBytes;
+            int succeed, failed;
+            unsigned long long writeBytes, readBytes;
             succeed = failed = writeBytes = readBytes = 0;
             benchcore(request, url->host, url->port, 
                 &succeed, &failed, &writeBytes, &readBytes);
@@ -667,7 +669,7 @@ void bench(char *request, Url *url) {
 
             char resBuf[64];
             memset(resBuf, 0, 64);
-            int len = snprintf(resBuf, 64, "%d %d %d %d %d\n",
+            int len = snprintf(resBuf, 64, "%d %d %d %llu %llu\n",
                 (int)(et - st), succeed, failed, writeBytes, readBytes);
             close(mypipe[0]);
             write(mypipe[1], resBuf, len);
@@ -685,12 +687,14 @@ void bench(char *request, Url *url) {
     while (wait(NULL) > 0);  // wait(NULL)是阻塞式的
 
     // 统计结果
-    char resBuf[10240];
-    memset(resBuf, 0, 10240);
-    read(mypipe[0], resBuf, 10240);
+    char resBuf[409600];
+    memset(resBuf, 0, 409600);
+    read(mypipe[0], resBuf, 409600);
+    // printf("子进程数据：\n%s\n", resBuf);
 
     // 时长、总请求、每秒发送请求、成功、失败、每秒发送数据量、每秒接收数据量
-    int maxTime, fotal, succeed, failed, writeBytes, readBytes;
+    int maxTime, fotal, succeed, failed;
+    unsigned long long writeBytes, readBytes;
     maxTime = fotal = succeed = failed = writeBytes = readBytes = 0;
 
     int j = 0;
@@ -699,8 +703,9 @@ void bench(char *request, Url *url) {
         int len = s1 - &resBuf[j];
         resBuf[j + len] = 0;
 
-        int tmpTime, tmpSucceed, tmpFailed, tmpWriteBytes, tmpReadBytes;
-        sscanf(&resBuf[j], "%d %d %d %d %d", 
+        int tmpTime, tmpSucceed, tmpFailed;
+        unsigned long long tmpWriteBytes, tmpReadBytes;
+        sscanf(&resBuf[j], "%d %d %d %llu %llu", 
             &tmpTime, &tmpSucceed, &tmpFailed, &tmpWriteBytes, &tmpReadBytes);
         if (tmpTime > maxTime) {
             maxTime = tmpTime;
@@ -719,7 +724,7 @@ void bench(char *request, Url *url) {
     }
     fotal = succeed + failed;
     printf("时长 %dseconds, 总请求 %d, 每秒发送请求 %d, 成功 %d, 失败 %d, "
-        "每秒发送数据量 %d, 每秒接收数据量 %d\n",
+        "每秒发送数据量 %llu, 每秒接收数据量 %llu\n",
         maxTime, fotal, fotal / maxTime, succeed, failed, 
         writeBytes / maxTime, readBytes / maxTime);
 }

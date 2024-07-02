@@ -3,7 +3,12 @@
 一个用于压测的项目，支持http协议。
 
 
-案例1：
+程序开启多进程来进行压测，每个进程代表一个客户端
+
+
+# 使用方法
+
+案例1：调试，向目标接口发送一个请求
 
 ```text
 [root@Linux1 web_bench]# ./wb http://www.taobao.com
@@ -40,19 +45,19 @@ EagleId: 7d27879f17196360856825089e
 ```
 
 
-案例2：
+案例2：压测，开启10个客户端，每个客户端请求1000次，同时指定请求体
 
 ```text
-[root@Linux1 web_bench]# ./wb -c 10 --count 1000  -X POST --data '{"aa": "bb", \}' http://192.168.31.147:8080/api/v1/hello/test2
+[root@Linux1 web_bench]# ./wb -c 10 --count 1000  -X POST --data '{"aa": "bb"}' http://192.168.31.147:8080/api/v1/hello/test2
 请求：
 POST /api/v1/hello/test2 HTTP/1.1
 Host: 192.168.31.147
 User-Agent: WebBench 0.0.1
 Connection: close
 Content-Type: text/plain
-Content-Length: 15
+Content-Length: 12
 
-{"aa": "bb", \}
+{"aa": "bb"}
 
-时长 2seconds, 总请求 10000, 每秒发送请求 5000, 成功 10000, 失败 0, 每秒发送数据量 805000, 每秒接收数据量 713947
+时长 19seconds, 总请求 10000, 每秒发送请求 526, 成功 10000, 失败 0, 每秒发送数据量 83157, 每秒接收数据量 75152
 ```
